@@ -41,6 +41,11 @@
 
 #import <objc/runtime.h>
 
+#define IS_IPHONE (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone)
+#define IS_IPHONE_X_IOS7 (IS_IPHONE && [[UIScreen mainScreen] bounds].size.height == 812.0f)
+#define IS_IPHONE_X_IOS8 (IS_IPHONE && ([[UIScreen mainScreen] nativeBounds].size.height/[[UIScreen mainScreen] nativeScale]) == 812.0f)
+
+#define IS_IPHONE_X ( ( [ [ UIScreen mainScreen ] respondsToSelector: @selector( nativeBounds ) ] ) ? IS_IPHONE_X_IOS8 : IS_IPHONE_X_IOS7 )
 
 // Fixes rdar://26295020
 // See issue #1247 and Peter Steinberger's comment:
@@ -142,7 +147,9 @@ JSQMessagesKeyboardControllerDelegate>
 
 
 
-@implementation JSQMessagesViewController
+@implementation JSQMessagesViewController {
+    BOOL adjustedToolbar_;
+}
 
 #pragma mark - Class methods
 
@@ -171,9 +178,12 @@ JSQMessagesKeyboardControllerDelegate>
 {
     self.view.backgroundColor = [UIColor whiteColor];
 
+    adjustedToolbar_ = NO;
     self.jsq_isObserving = NO;
 
-    self.toolbarHeightConstraint.constant = self.inputToolbar.preferredDefaultHeight;
+    BOOL needToAdjust = IS_IPHONE_X && self.toolbarBottomLayoutGuide.constant == 0;
+    CGFloat offset = needToAdjust ? 44.f : 0.f;
+    self.toolbarHeightConstraint.constant = self.inputToolbar.preferredDefaultHeight + offset;
 
     self.collectionView.dataSource = self;
     self.collectionView.delegate = self;
@@ -277,6 +287,9 @@ JSQMessagesKeyboardControllerDelegate>
     NSParameterAssert(self.senderDisplayName != nil);
 
     [super viewWillAppear:animated];
+    
+    BOOL needToAdjust = IS_IPHONE_X && self.toolbarBottomLayoutGuide.constant == 0;
+    CGFloat offset = needToAdjust ? 44.f : 0.f;
     self.toolbarHeightConstraint.constant = self.inputToolbar.preferredDefaultHeight;
     [self.view layoutIfNeeded];
     [self.collectionView.collectionViewLayout invalidateLayout];
@@ -917,7 +930,22 @@ JSQMessagesKeyboardControllerDelegate>
 
 - (void)jsq_setToolbarBottomLayoutGuideConstant:(CGFloat)constant
 {
+    BOOL needToAdjust = IS_IPHONE_X && constant == 0;
+    CGFloat offset = needToAdjust ? 44.f : 0.f;
+    if (IS_IPHONE_X) {
+        CGFloat heightAdjustment = 0.f;
+        if (!needToAdjust && adjustedToolbar_) {
+            heightAdjustment = -44.f;
+            adjustedToolbar_ = NO;
+        } else if (needToAdjust) {
+            heightAdjustment = 44.f;
+            adjustedToolbar_ = YES;
+        }
+        
+        self.toolbarHeightConstraint.constant = self.toolbarHeightConstraint.constant + heightAdjustment;
+    }
     self.toolbarBottomLayoutGuide.constant = constant;
+    [self.inputToolbar.contentView adjustConstraintsForIphoneX:needToAdjust];
     [self.view setNeedsUpdateConstraints];
     [self.view layoutIfNeeded];
 
@@ -1054,8 +1082,13 @@ JSQMessagesKeyboardControllerDelegate>
 
 - (void)jsq_updateCollectionViewInsets
 {
+    CGFloat offset = 0.f;
+    if (IS_IPHONE_X) {
+        offset = 44.f;
+    }
+    
     [self jsq_setCollectionViewInsetsTopValue:self.topLayoutGuide.length + self.topContentAdditionalInset
-                                  bottomValue:CGRectGetMaxY(self.collectionView.frame) - CGRectGetMinY(self.inputToolbar.frame)];
+                                  bottomValue:CGRectGetMaxY(self.collectionView.frame) - CGRectGetMinY(self.inputToolbar.frame) - offset];
 }
 
 - (void)jsq_setCollectionViewInsetsTopValue:(CGFloat)top bottomValue:(CGFloat)bottom

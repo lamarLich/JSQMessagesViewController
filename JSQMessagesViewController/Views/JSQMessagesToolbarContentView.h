@@ -121,4 +121,6 @@ FOUNDATION_EXPORT const CGFloat kJSQMessagesToolbarContentViewHorizontalSpacingD
  */
 + (UINib *)nib;
 
+- (void)adjustConstraintsForIphoneX:(BOOL)adjusted;
+
 @end
