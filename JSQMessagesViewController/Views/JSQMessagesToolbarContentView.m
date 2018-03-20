@@ -15,6 +15,11 @@
 //  Copyright (c) 2014 Jesse Squires
 //  Released under an MIT license: http://opensource.org/licenses/MIT
 //
+#define IS_IPHONE (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone)
+#define IS_IPHONE_X_IOS7 (IS_IPHONE && [[UIScreen mainScreen] bounds].size.height == 812.0f)
+#define IS_IPHONE_X_IOS8 (IS_IPHONE && ([[UIScreen mainScreen] nativeBounds].size.height/[[UIScreen mainScreen] nativeScale]) == 812.0f)
+
+#define IS_IPHONE_X ( ( [ [ UIScreen mainScreen ] respondsToSelector: @selector( nativeBounds ) ] ) ? IS_IPHONE_X_IOS8 : IS_IPHONE_X_IOS7 )
 
 #import "JSQMessagesToolbarContentView.h"
 
@@ -36,6 +41,10 @@ const CGFloat kJSQMessagesToolbarContentViewHorizontalSpacingDefault = 8.0f;
 @property (weak, nonatomic) IBOutlet NSLayoutConstraint *leftHorizontalSpacingConstraint;
 @property (weak, nonatomic) IBOutlet NSLayoutConstraint *rightHorizontalSpacingConstraint;
 
+@property (strong, nonatomic) IBOutletCollection(NSLayoutConstraint) NSArray *sideViewsBottomConstraints;
+@property (strong, nonatomic) IBOutlet NSLayoutConstraint *textViewBottomConstraint;
+
+
 @end
 
 
@@ -48,6 +57,14 @@ const CGFloat kJSQMessagesToolbarContentViewHorizontalSpacingDefault = 8.0f;
 {
     return [UINib nibWithNibName:NSStringFromClass([JSQMessagesToolbarContentView class])
                           bundle:[NSBundle bundleForClass:[JSQMessagesToolbarContentView class]]];
+}
+
+- (void)adjustConstraintsForIphoneX:(BOOL)adjusted
+{
+    for (NSLayoutConstraint *constraint in _sideViewsBottomConstraints) {
+        constraint.constant = adjusted ? 6 + 44 : 6;
+    }
+    _textViewBottomConstraint.constant = adjusted ? 7 + 44 : 7;
 }
 
 #pragma mark - Initialization
